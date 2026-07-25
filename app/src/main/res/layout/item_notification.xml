@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginHorizontal="8dp"
+    android:layout_marginVertical="4dp"
+    android:background="@drawable/bg_rounds"
+    android:padding="6dp">
+
+    <ImageView
+        android:id="@+id/imgView"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:src="@drawable/ic_notification"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/tvTransfer"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="4dp"
+        android:layout_marginTop="4dp"
+        android:text="@string/transfer"
+        android:textColor="@color/gray"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        app:layout_constraintLeft_toRightOf="@id/imgView"
+        app:layout_constraintTop_toTopOf="@id/imgView" />
+
+    <TextView
+        android:id="@+id/tvTime"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="4dp"
+        android:layout_marginTop="5dp"
+        android:text="31/01/2023"
+        android:textColor="@color/gray"
+        android:textSize="11sp"
+        android:textStyle="italic"
+        app:layout_constraintLeft_toRightOf="@id/tvTransfer"
+        app:layout_constraintTop_toTopOf="@id/imgView" />
+
+    <ImageView
+        android:id="@+id/imgStatus"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:src="@drawable/ic_fail"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/tvTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="4dp"
+        android:layout_marginTop="4dp"
+        android:text="Số dư TK VCB 0011004199711 +233,000 VND lúc 28-01-2023 20:09:25. Số dư 6,870,311 VND. Ref 911672.280123.200822.accfifa sangdeptrai11"
+        android:textColor="@color/black"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        app:layout_constraintTop_toBottomOf="@id/imgView" />
+
+    <TextView
+        android:id="@+id/tvDesc"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="4dp"
+        android:text="Số dư TK VCB 0011004199711 +233,000 VND lúc 28-01-2023 20:09:25. Số dư 6,870,311 VND. Ref 911672.280123.200822.accfifa sangdeptrai11"
+        android:textColor="@color/gray"
+        android:textSize="12sp"
+        app:layout_constraintTop_toBottomOf="@id/tvTitle" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

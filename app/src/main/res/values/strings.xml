@@ -1,0 +1,12 @@
+<resources>
+    <string name="app_name">Thông báo</string>
+    <string name="transfer">Chuyển tiền: </string>
+    <string name="list_empty">Bạn chưa có thông báo nào!</string>
+    <string name="list_empty_desc">Khi có thông báo mới danh sách sẽ được cập nhật</string>
+    <string name="add">Thêm</string>
+    <string name="edit">Sửa</string>
+    <string name="notify_item_title">Nạp %sđ từ %s</string>
+    <string name="notify_item_desc">Cho tài khoản \"%s\" tại web \"%s\"</string>
+    <string name="enter_device_id">Nhập vào device_id</string>
+    <string name="enter_names">Nhập vào tên app</string>
+</resources>

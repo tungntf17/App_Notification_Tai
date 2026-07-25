@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "897317039815",
+    "project_id": "tai-net-banking",
+    "storage_bucket": "tai-net-banking.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:897317039815:android:f7ecd42e141dc88187d8e2",
+        "android_client_info": {
+          "package_name": "com.linhnt.notifications"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAJxKLYvNa-DiBHe_GgbCed-mLVYF8RhQU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
