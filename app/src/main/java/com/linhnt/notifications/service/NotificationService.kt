@@ -1,194 +1,129 @@
 package com.linhnt.notifications.service
 
-import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
-import android.content.Context
+import android.content.ComponentName
 import android.content.Intent
 import android.graphics.Color
 import android.os.Build
-import android.os.StrictMode
-import android.os.StrictMode.ThreadPolicy
+import android.os.Handler
+import android.os.Looper
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
 import androidx.core.app.NotificationCompat
-import androidx.localbroadcastmanager.content.LocalBroadcastManager
-import com.eup.hanzii.databases.history_sqlite.HistorySQLiteDatabase
-import com.google.gson.Gson
 import com.linhnt.notifications.R
 import com.linhnt.notifications.activity.MainActivity
-import com.linhnt.notifications.helper.BCrypt
+import com.linhnt.notifications.config.SupportedBankApps
+import com.linhnt.notifications.helper.NotificationContentExtractor
 import com.linhnt.notifications.helper.PreferenceHelper
-import com.linhnt.notifications.model.NotifyItem
-import com.linhnt.notifications.model.PostData
-import com.linhnt.notifications.model.ResultItem
-import java.text.SimpleDateFormat
-import java.util.*
-import java.util.regex.Pattern
+import com.linhnt.notifications.worker.QueueScheduler
 
 class NotificationService : NotificationListenerService() {
-    var context: Context? = null
-    val historySQLiteDatabase = HistorySQLiteDatabase(this, HistorySQLiteDatabase.DB_NAME)
-    var lastPostData: PostData? = null
-    val notificationId: Int = 7654
+    private val heartbeatHandler = Handler(Looper.getMainLooper())
+    private val heartbeatRunnable = object : Runnable {
+        override fun run() {
+            PreferenceHelper(this@NotificationService).setLastHeartbeatAt()
+            heartbeatHandler.postDelayed(this, HEARTBEAT_INTERVAL_MS)
+        }
+    }
 
     override fun onCreate() {
         super.onCreate()
-        context = applicationContext
-
-        val foregroundNotification = getForegroundNotification()
-        startForeground(notificationId, foregroundNotification)
+        QueueScheduler.ensureHeartbeat(this)
+        startForeground(NOTIFICATION_ID, createForegroundNotification())
     }
 
-    private fun getForegroundNotification(): Notification {
-        val channelId = "chat_head_chanel_id"
+    override fun onListenerConnected() {
+        super.onListenerConnected()
+        PreferenceHelper(this).setListenerConnected(true)
+        startServiceHeartbeat()
+        QueueScheduler.enqueueAllPending(this)
+        Log.i(TAG, "Notification listener connected")
+    }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-            // The user-visible name of the channel.
-            val name: CharSequence = "Android-Notifications"
-            // The user-visible description of the channel.
-            val description = "Listen Android notifications event"
-            val mChannel = NotificationChannel(channelId, name, NotificationManager.IMPORTANCE_LOW)
-            // Configure the notification channel.
-            mChannel.description = description
-            mChannel.enableLights(true)
-            // Sets the notification light color for notifications posted to this
-            // channel, if the device supports this feature.
-            mChannel.lightColor = Color.BLUE
-            notificationManager.createNotificationChannel(mChannel)
+    override fun onListenerDisconnected() {
+        super.onListenerDisconnected()
+        PreferenceHelper(this).setListenerConnected(false)
+        stopServiceHeartbeat()
+        Log.w(TAG, "Notification listener disconnected")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            requestRebind(ComponentName(this, NotificationService::class.java))
         }
+    }
 
-        val notifyIntent = Intent(applicationContext, MainActivity::class.java)
-        notifyIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_CLEAR_TASK
+    override fun onNotificationPosted(sbn: StatusBarNotification?) {
+        if (sbn == null || !SupportedBankApps.isSupported(sbn.packageName)) return
 
-        val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        } else {
-            PendingIntent.FLAG_UPDATE_CURRENT
-        }
-        val pendingIntent = PendingIntent.getActivity(
-            applicationContext, 1, notifyIntent, flags
+        val content = NotificationContentExtractor.extract(sbn.notification)
+        if (content.isBlank()) return
+
+        PreferenceHelper(this).setLastNotificationAt()
+        val eventTime = sbn.notification.`when`.takeIf { it > 0L } ?: sbn.postTime
+        QueueScheduler.enqueueCapture(
+            context = this,
+            packageName = sbn.packageName,
+            notificationKey = sbn.key.orEmpty(),
+            notificationId = sbn.id,
+            notificationTag = sbn.tag.orEmpty(),
+            postTime = sbn.postTime,
+            eventTime = eventTime,
+            content = content
         )
-
-        return NotificationCompat.Builder(this, channelId).setContentIntent(pendingIntent).setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle(context!!.getString(R.string.list_empty_desc)).build()
     }
 
-    override fun onNotificationPosted(sbn: StatusBarNotification) {
-        val policy = ThreadPolicy.Builder().permitAll().build()
-        StrictMode.setThreadPolicy(policy)
-        val packageName = sbn.packageName
-        val extras = sbn.notification.extras
+    override fun onDestroy() {
+        PreferenceHelper(this).setListenerConnected(false)
+        stopServiceHeartbeat()
+        super.onDestroy()
+    }
 
-        val titleData = extras.getString("android.title") ?: ""
-        val messageData = (extras.getCharSequence("android.text") ?: "").toString()
+    private fun startServiceHeartbeat() {
+        heartbeatHandler.removeCallbacks(heartbeatRunnable)
+        heartbeatHandler.post(heartbeatRunnable)
+    }
 
-        val postData = PostData()
-        postData.content = "$titleData $messageData".replace("QR-", "")
+    private fun stopServiceHeartbeat() {
+        heartbeatHandler.removeCallbacks(heartbeatRunnable)
+    }
 
-        if (postData.content == lastPostData?.content) { // check trung hoan toan || truong hop chua luu vao db
-            return
+    private fun createForegroundNotification(): Notification {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+            val channel = NotificationChannel(
+                CHANNEL_ID,
+                "Android Notifications",
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = "Theo dõi thông báo giao dịch ngân hàng"
+                enableLights(true)
+                lightColor = Color.BLUE
+            }
+            manager.createNotificationChannel(channel)
         }
 
-        if (packageName.lowercase().contains("notifications1".lowercase())
-            || packageName.lowercase().contains("VCB".lowercase())
-            || packageName.lowercase().contains("momotransfer".lowercase())
-        ) {
-            var time: String = getCurrentTime()
-            var status = false // gửi lên sv thành công
-
-            val preferenceHelper = PreferenceHelper(context!!, "PREF_NOTIFY")
-            postData.device_id = preferenceHelper.getDeviceId()
-            postData.app = "Momo"
-
-            val appNames = preferenceHelper.getAppNames()
-            var pattern = Pattern.compile("([\\d.]{4,})[đd].+?\"(.+?) (.+?)\"")
-            var matcher = pattern.matcher(postData.content.lowercase())
-
-            if (matcher.find()) {
-                postData.amount = matcher.group(1)!!.replace(".", "").trim()
-                postData.source = matcher.group(2)!!.replace(" ", "").trim()
-                postData.account = matcher.group(3)!!.replace(" ", "").trim()
-
-            } else {
-                pattern = Pattern.compile("([\\d.]{4,})[đd].+?($appNames) (\\w+)")
-                matcher = pattern.matcher(postData.content.lowercase())
-
-                if (matcher.find()) {
-                    postData.amount = matcher.group(1)!!.replace(".", "").trim()
-                    postData.source = matcher.group(2)!!.replace(" ", "").trim()
-                    postData.account = matcher.group(3)!!.replace(" ", "").trim()
-
-                } else {
-                    postData.app = "VCB"
-                    pattern = Pattern.compile("\\+([\\d,]{4,}) vnd.+?(\\d+-\\d+-\\d+ \\d+:\\d+:\\d+).+?($appNames) (\\w+)(-d{6,8}-d{2}:d{2}:d{2} d+)*")
-                    matcher = pattern.matcher(postData.content.lowercase())
-                    if (matcher.find()) {
-                        postData.amount = matcher.group(1)!!.replace(",", "").trim()
-                        time = matcher.group(2)!!
-                        postData.source = matcher.group(3)!!.replace(" ", "").trim()
-                        postData.account = matcher.group(4)!!.replace(" ", "").trim()
-                    }
-                }
-            }
-
-            //  check trùng lặp (duplicate) || chắc làm db luôn
-            if (historySQLiteDatabase.dbHelper.checkDuplicate(postData.account, postData.amount, time)) {
-                return
-            }
-
-            // account+device_id || bcrypt rounds: 8
-            if (postData.account != "" && postData.amount != "") {
-                val key = postData.account + postData.device_id
-                val integrity = BCrypt.hashpw(key.trim(), BCrypt.gensalt(8))
-                postData.integrity = integrity
-            } else {
-                postData.account = "lỗi"
-                postData.app = packageName
-            }
-
-            try { // ok-http post to server
-                val postServer = PostServer()
-                val json = postServer.convertJson(postData)
-                val response = postServer.post("http://103.139.202.23:3006/api/forwarder", json)
-
-                if (!response.isNullOrEmpty()) {
-                    val resultItem = Gson().fromJson(response, ResultItem::class.java)
-                    if (resultItem != null && resultItem.success == true) {
-                        status = true
-                    }
-                }
-
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-
-//            val msgrcv = Intent("Msg")
-//            msgrcv.putExtra("json", Gson().toJson(postData))
-//            msgrcv.putExtra("time", time)
-//            msgrcv.putExtra("status", status)
-//            LocalBroadcastManager.getInstance(context!!).sendBroadcast(msgrcv)
-
-            val item = NotifyItem()
-            item.convertFromData(data = postData, time, status)
-            historySQLiteDatabase.dbHelper.saveHistory(item)
-
-            // luu lastPostData
-            lastPostData = postData
+        val intent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
+        val pendingFlags = PendingIntent.FLAG_UPDATE_CURRENT or
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0
+        val pendingIntent = PendingIntent.getActivity(this, 1, intent, pendingFlags)
+
+        return NotificationCompat.Builder(this, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(getString(R.string.app_name))
+            .setContentText("Đang theo dõi thông báo ngân hàng")
+            .setOngoing(true)
+            .setContentIntent(pendingIntent)
+            .build()
     }
 
-    @SuppressLint("SimpleDateFormat")
-    private fun getCurrentTime(): String {
-        val sim = SimpleDateFormat("HH:mm dd-MM-yyyy")
-        return sim.format(Date())
-    }
-
-    override fun onNotificationRemoved(sbn: StatusBarNotification) {
-        Log.d("Msg", "Notification Removed")
+    companion object {
+        private const val TAG = "NotificationService"
+        private const val CHANNEL_ID = "notification_listener_status"
+        private const val NOTIFICATION_ID = 7654
+        private const val HEARTBEAT_INTERVAL_MS = 60_000L
     }
 }

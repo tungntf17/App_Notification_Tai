@@ -1,30 +1,11 @@
-# Gradle
 .gradle/
-build/
-**/build/
-
-# Local configuration
-local.properties
-
-# Android Studio
 .idea/
+local.properties
 *.iml
-captures/
-.externalNativeBuild/
-.cxx/
-
-# Signing files
 *.jks
 *.keystore
-
-# Secrets
-.env
-.env.*
-secrets.properties
-
-# Logs
-*.log
-
-# OS files
-.DS_Store
-Thumbs.db
+keystore.properties
+**/build/
+app/release/
+*.apk
+*.aab

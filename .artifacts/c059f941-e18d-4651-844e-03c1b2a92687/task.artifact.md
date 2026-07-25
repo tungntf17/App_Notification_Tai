@@ -1,0 +1,9 @@
+- `[x]` Chuyển đổi BCrypt sang Kotlin
+    - `[x]` Tạo file `BCrypt.kt` với logic từ `BCrypt.java`
+    - `[x]` Xóa file `BCrypt.java`
+- `[x]` Dọn dẹp thư mục test
+    - `[x]` Xóa thư mục `app/src/androidTest`
+    - `[x]` Xóa thư mục `app/src/test`
+- `[x]` Kiểm tra và xác minh
+    - `[x]` Build project để xác nhận không lỗi compile
+    - `[x]` Tạo walkthrough tổng kết

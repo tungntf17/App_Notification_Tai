@@ -1,38 +1,66 @@
 package com.linhnt.notifications.helper
 
-import android.annotation.SuppressLint
 import android.content.Context
 import android.content.SharedPreferences
-import android.content.res.Configuration
-import android.provider.Settings
-import com.google.gson.Gson
-import com.google.gson.JsonSyntaxException
-import com.google.gson.reflect.TypeToken
-import com.google.gson.stream.MalformedJsonException
-import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Locale
 
-class PreferenceHelper(val context: Context, name: String) {
+class PreferenceHelper(context: Context, name: String = PREF_NAME) {
+    private val shared: SharedPreferences = context.applicationContext
+        .getSharedPreferences(name, Context.MODE_PRIVATE)
 
-    private val shared: SharedPreferences = context.getSharedPreferences(name, Context.MODE_PRIVATE)
-
-    private val KEY_DEVICE_ID = "KEY_DEVICE_ID"
-    fun getDeviceId(): String {
-        return shared.getString(KEY_DEVICE_ID, "")?.trim() ?: ""
-    }
+    fun getDeviceId(): String = shared.getString(KEY_DEVICE_ID, "")?.trim().orEmpty()
 
     fun setDeviceId(value: String) {
-        shared.edit().putString(KEY_DEVICE_ID, value).apply()
+        shared.edit().putString(KEY_DEVICE_ID, value.trim()).apply()
     }
 
-    private val APP_NAMES = "APP_NAMES"
     fun getAppNames(): String {
-        val names = "accfifa|9dmanga|accffia|9dfgc|9dtt"
-        return shared.getString(APP_NAMES, names)?.trim() ?: names
+        return shared.getString(KEY_APP_NAMES, DEFAULT_APP_NAMES)?.trim() ?: DEFAULT_APP_NAMES
+    }
+
+    fun getAppNameList(): List<String> {
+        return getAppNames()
+            .split('|', ',', ';', '\n')
+            .map(String::trim)
+            .filter(String::isNotEmpty)
+            .distinctBy { it.lowercase(Locale.ROOT) }
     }
 
     fun setAppNames(value: String) {
-        shared.edit().putString(APP_NAMES, value).apply()
+        shared.edit().putString(KEY_APP_NAMES, value.trim()).apply()
     }
 
+    fun setListenerConnected(value: Boolean) {
+        shared.edit()
+            .putBoolean(KEY_LISTENER_CONNECTED, value)
+            .putLong(KEY_LISTENER_STATE_AT, System.currentTimeMillis())
+            .apply()
+    }
+
+    fun isListenerConnected(): Boolean = shared.getBoolean(KEY_LISTENER_CONNECTED, false)
+
+    fun getListenerStateAt(): Long = shared.getLong(KEY_LISTENER_STATE_AT, 0L)
+
+    fun setLastNotificationAt(value: Long = System.currentTimeMillis()) {
+        shared.edit().putLong(KEY_LAST_NOTIFICATION_AT, value).apply()
+    }
+
+    fun getLastNotificationAt(): Long = shared.getLong(KEY_LAST_NOTIFICATION_AT, 0L)
+
+    fun setLastHeartbeatAt(value: Long = System.currentTimeMillis()) {
+        shared.edit().putLong(KEY_LAST_HEARTBEAT_AT, value).apply()
+    }
+
+    fun getLastHeartbeatAt(): Long = shared.getLong(KEY_LAST_HEARTBEAT_AT, 0L)
+
+    companion object {
+        const val PREF_NAME = "PREF_NOTIFY"
+        private const val KEY_DEVICE_ID = "KEY_DEVICE_ID"
+        private const val KEY_APP_NAMES = "APP_NAMES"
+        private const val KEY_LISTENER_CONNECTED = "LISTENER_CONNECTED"
+        private const val KEY_LISTENER_STATE_AT = "LISTENER_STATE_AT"
+        private const val KEY_LAST_NOTIFICATION_AT = "LAST_NOTIFICATION_AT"
+        private const val KEY_LAST_HEARTBEAT_AT = "LAST_HEARTBEAT_AT"
+        private const val DEFAULT_APP_NAMES = "accfifa|9dmanga|accffia|9dfgc|9dtt"
+    }
 }

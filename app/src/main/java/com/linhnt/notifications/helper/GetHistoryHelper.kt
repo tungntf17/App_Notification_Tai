@@ -1,124 +1,215 @@
 package com.linhnt.notifications.helper
 
-import android.annotation.SuppressLint
 import android.content.ContentValues
-import android.database.sqlite.SQLiteDatabaseLockedException
-import android.database.sqlite.SQLiteException
+import android.database.Cursor
 import android.database.sqlite.SQLiteOpenHelper
 import android.util.Log
-import androidx.core.database.getStringOrNull
+import com.linhnt.notifications.model.DeliveryState
 import com.linhnt.notifications.model.NotifyItem
-import java.text.SimpleDateFormat
-import java.util.*
-import java.util.regex.Pattern
-import kotlin.math.abs
+import com.linhnt.notifications.model.QueuedTransaction
+import java.util.Calendar
 
-/**
- * Created by iDuyNM on 2/11/2019
- */
 class GetHistoryHelper(
-    private val sqliteOpenHelper: SQLiteOpenHelper,
+    private val sqliteOpenHelper: SQLiteOpenHelper
 ) {
-    val TABLE_HISTORY = "history_data"
+    private val table = HistorySQLiteDatabase.TABLE_HISTORY
 
-    fun getTodayHistory(): ArrayList<NotifyItem> {
-        val today = getToday()
-        val query = "SELECT * FROM $TABLE_HISTORY Where time Like '%$today%' ORDER BY id desc"
-        return getHistoryByQuery(query)
-    }
-
-    @SuppressLint("SimpleDateFormat")
-    private fun getToday(): String {
-        val sim = SimpleDateFormat("dd-MM-yyyy")
-        return sim.format(Date())
-    }
-
-    @SuppressLint("Range")
-    private fun getHistoryByQuery(query: String): ArrayList<NotifyItem> {
-        val result = ArrayList<NotifyItem>()
-        try {
-            val db = sqliteOpenHelper.readableDatabase
-            try {
-                val cursor = db.rawQuery(query, null)
-
-                cursor.moveToFirst()
-                while (!cursor.isAfterLast) {
-                    val item = NotifyItem()
-                    item.account = cursor.getStringOrNull(cursor.getColumnIndex("account")) ?: ""
-                    item.app = cursor.getStringOrNull(cursor.getColumnIndex("app")) ?: ""
-                    item.amount = cursor.getStringOrNull(cursor.getColumnIndex("amount")) ?: ""
-                    item.time = cursor.getStringOrNull(cursor.getColumnIndex("time")) ?: ""
-                    item.source = cursor.getStringOrNull(cursor.getColumnIndex("source")) ?: ""
-                    item.status = cursor.getInt(cursor.getColumnIndex("status")) == 1
-
-                    result.add(item)
-                    cursor.moveToNext()
-                }
-                cursor.close()
-            } catch (ex: SQLiteException) {
-                ex.printStackTrace()
-            } finally {
-                db.close()
-            }
-        } catch (e: SQLiteDatabaseLockedException) {
+    fun insertPending(item: QueuedTransaction): Boolean {
+        val values = ContentValues().apply {
+            put("event_id", item.eventId)
+            put("notification_key", item.notificationKey)
+            put("package_name", item.packageName)
+            put("device_id", item.deviceId)
+            put("app", item.app)
+            put("source", item.source)
+            put("amount", item.amount)
+            put("account", item.account)
+            put("time", item.time)
+            put("post_time", item.postTime)
+            put("content", item.content)
+            put("status", 0)
+            put("delivery_state", DeliveryState.PENDING)
+            put("attempt_count", 0)
+            put("last_error", "")
+            put("created_at", item.createdAt)
+            put("updated_at", item.updatedAt)
         }
+        val rowId = sqliteOpenHelper.writableDatabase.insertWithOnConflict(
+            table,
+            null,
+            values,
+            android.database.sqlite.SQLiteDatabase.CONFLICT_IGNORE
+        )
+        return rowId != -1L
+    }
 
+    fun getByEventId(eventId: String): QueuedTransaction? {
+        val cursor = sqliteOpenHelper.readableDatabase.query(
+            table,
+            null,
+            "event_id = ?",
+            arrayOf(eventId),
+            null,
+            null,
+            null,
+            "1"
+        )
+        cursor.use {
+            return if (it.moveToFirst()) readQueuedTransaction(it) else null
+        }
+    }
+
+    fun markSending(eventId: String) {
+        sqliteOpenHelper.writableDatabase.execSQL(
+            """
+            UPDATE $table
+            SET delivery_state = ?, attempt_count = attempt_count + 1,
+                last_error = '', updated_at = ?
+            WHERE event_id = ? AND delivery_state != ?
+            """.trimIndent(),
+            arrayOf(DeliveryState.SENDING, System.currentTimeMillis(), eventId, DeliveryState.SENT)
+        )
+    }
+
+    fun markRetry(eventId: String, error: String) {
+        updateDelivery(eventId, DeliveryState.RETRY, false, error)
+    }
+
+    fun markSent(eventId: String) {
+        updateDelivery(eventId, DeliveryState.SENT, true, "")
+    }
+
+    fun markFailed(eventId: String, error: String) {
+        updateDelivery(eventId, DeliveryState.FAILED, false, error)
+    }
+
+    private fun updateDelivery(eventId: String, state: String, status: Boolean, error: String) {
+        val values = ContentValues().apply {
+            put("delivery_state", state)
+            put("status", if (status) 1 else 0)
+            put("last_error", error.take(1000))
+            put("updated_at", System.currentTimeMillis())
+        }
+        sqliteOpenHelper.writableDatabase.update(
+            table,
+            values,
+            "event_id = ?",
+            arrayOf(eventId)
+        )
+    }
+
+    fun getRetryableEventIds(limit: Int = 100): List<String> {
+        val states = arrayOf(DeliveryState.PENDING, DeliveryState.RETRY, DeliveryState.SENDING)
+        val cursor = sqliteOpenHelper.readableDatabase.query(
+            table,
+            arrayOf("event_id"),
+            "delivery_state IN (?, ?, ?)",
+            states,
+            null,
+            null,
+            "created_at ASC",
+            limit.coerceIn(1, 500).toString()
+        )
+        val result = ArrayList<String>()
+        cursor.use {
+            while (it.moveToNext()) {
+                result.add(it.getString(it.getColumnIndexOrThrow("event_id")))
+            }
+        }
         return result
     }
 
-    fun saveHistory(item: NotifyItem) {
-        val db = sqliteOpenHelper.writableDatabase
-        val newValue = ContentValues()
-
-        newValue.put("account", item.account)
-        newValue.put("app", item.app)
-        newValue.put("amount", item.amount)
-        newValue.put("time", item.time)
-        newValue.put("source", item.source)
-        newValue.put("status", item.status)
-
-        db.insert(TABLE_HISTORY, null, newValue)
-        db.close()
+    fun getPendingCount(): Int {
+        val cursor = sqliteOpenHelper.readableDatabase.rawQuery(
+            "SELECT COUNT(*) FROM $table WHERE delivery_state IN (?, ?, ?)",
+            arrayOf(DeliveryState.PENDING, DeliveryState.RETRY, DeliveryState.SENDING)
+        )
+        cursor.use { return if (it.moveToFirst()) it.getInt(0) else 0 }
     }
 
-    // check trung: cung account, cung tien, thoi gian khong qua 1 phut
-    @SuppressLint("SimpleDateFormat")
-    fun checkDuplicate(account: String, amount: String, time: String): Boolean {
-        val today = getToday()
-        val query = "SELECT * FROM $TABLE_HISTORY Where time Like '%$today%' and account = '$account' and amount = '$amount' and status = 1 ORDER BY id desc"
-        val listHistory = getHistoryByQuery(query = query)
-
-        // check date format pattern
-        val patternMomo = Pattern.compile("\\d+:\\d+ \\d+-\\d+-\\d+")
-        val matcherMomo= patternMomo.matcher(time)
-
-        val defaultSimFormat = "HH:mm dd-MM-yyyy"
-        val sim = SimpleDateFormat(defaultSimFormat)
-
-        var newDate: Date? = null
-        if (matcherMomo.find()) {
-             newDate = sim.parse(time)
+    fun getTodayHistory(): ArrayList<NotifyItem> {
+        val calendar = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
         }
+        val start = calendar.timeInMillis
+        calendar.add(Calendar.DAY_OF_MONTH, 1)
+        val end = calendar.timeInMillis
+        val legacyDate = java.text.SimpleDateFormat("dd-MM-yyyy", java.util.Locale.getDefault())
+            .format(java.util.Date(start))
 
-        for (item in listHistory) {
-            if (item.time == time) {
-                return true
-            }
-
-            if (newDate != null) {
-                val matcherItem = patternMomo.matcher(item.time)
-                if (matcherItem.find()) {
-                    val itemDate = sim.parse(item.time)
-                    if (itemDate != null) {
-                        if (abs(newDate.time - itemDate.time) < 1000) { // miliseconds
-                            return  true
+        val cursor = sqliteOpenHelper.readableDatabase.query(
+            table,
+            null,
+            "(post_time >= ? AND post_time < ?) OR (post_time = 0 AND time LIKE ?)",
+            arrayOf(start.toString(), end.toString(), "%$legacyDate%"),
+            null,
+            null,
+            "id DESC"
+        )
+        val result = ArrayList<NotifyItem>()
+        cursor.use {
+            while (it.moveToNext()) {
+                result.add(
+                    NotifyItem().apply {
+                        eventId = it.string("event_id")
+                        account = it.string("account")
+                        app = it.string("app")
+                        amount = it.string("amount")
+                        time = it.string("time")
+                        source = it.string("source")
+                        status = it.int("status") == 1
+                        deliveryState = it.string("delivery_state").ifBlank {
+                            if (status) DeliveryState.SENT else DeliveryState.FAILED
                         }
+                        lastError = it.string("last_error")
                     }
-                }
+                )
             }
         }
-
-        return false
+        return result
     }
 
+    private fun readQueuedTransaction(cursor: Cursor): QueuedTransaction {
+        return QueuedTransaction(
+            id = cursor.long("id"),
+            eventId = cursor.string("event_id"),
+            notificationKey = cursor.string("notification_key"),
+            packageName = cursor.string("package_name"),
+            deviceId = cursor.string("device_id"),
+            app = cursor.string("app"),
+            content = cursor.string("content"),
+            source = cursor.string("source"),
+            amount = cursor.string("amount"),
+            account = cursor.string("account"),
+            time = cursor.string("time"),
+            postTime = cursor.long("post_time"),
+            status = cursor.int("status") == 1,
+            deliveryState = cursor.string("delivery_state"),
+            attemptCount = cursor.int("attempt_count"),
+            lastError = cursor.string("last_error"),
+            createdAt = cursor.long("created_at"),
+            updatedAt = cursor.long("updated_at")
+        )
+    }
+
+    private fun Cursor.indexOrMinusOne(name: String): Int = getColumnIndex(name)
+    private fun Cursor.string(name: String): String {
+        val index = indexOrMinusOne(name)
+        return if (index < 0 || isNull(index)) "" else getString(index)
+    }
+    private fun Cursor.int(name: String): Int {
+        val index = indexOrMinusOne(name)
+        return if (index < 0 || isNull(index)) 0 else getInt(index)
+    }
+    private fun Cursor.long(name: String): Long {
+        val index = indexOrMinusOne(name)
+        return if (index < 0 || isNull(index)) 0L else getLong(index)
+    }
+
+    companion object {
+        private const val TAG = "HistoryDatabase"
+    }
 }
