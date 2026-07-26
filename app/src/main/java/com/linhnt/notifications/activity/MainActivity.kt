@@ -30,7 +30,6 @@ import com.linhnt.notifications.config.ServerConfig
 import com.linhnt.notifications.helper.HistorySQLiteDatabase
 import com.linhnt.notifications.helper.PreferenceHelper
 import com.linhnt.notifications.service.NotificationService
-import com.linhnt.notifications.worker.QueueScheduler
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -69,8 +68,6 @@ class MainActivity : AppCompatActivity() {
         if (preferences.getDeviceId().isBlank()) {
             showDeviceIdDialog()
         }
-        QueueScheduler.ensureHeartbeat(this)
-        QueueScheduler.enqueueAllPending(this)
     }
 
     override fun onResume() {
@@ -215,7 +212,6 @@ class MainActivity : AppCompatActivity() {
             .setView(input)
             .setPositiveButton(android.R.string.ok) { _, _ ->
                 preferences.setDeviceId(input.text.toString())
-                QueueScheduler.enqueueAllPending(this)
             }
             .setNegativeButton(android.R.string.cancel, null)
             .show()

@@ -32,7 +32,6 @@ class NotificationService : NotificationListenerService() {
 
     override fun onCreate() {
         super.onCreate()
-        QueueScheduler.ensureHeartbeat(this)
         startForeground(NOTIFICATION_ID, createForegroundNotification())
     }
 
@@ -40,7 +39,6 @@ class NotificationService : NotificationListenerService() {
         super.onListenerConnected()
         PreferenceHelper(this).setListenerConnected(true)
         startServiceHeartbeat()
-        QueueScheduler.enqueueAllPending(this)
         Log.i(TAG, "Notification listener connected")
     }
 

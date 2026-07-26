@@ -5,12 +5,15 @@ import android.util.Log
 import androidx.work.Worker
 import androidx.work.WorkerParameters
 import com.linhnt.notifications.config.SupportedBankApps
+import com.linhnt.notifications.helper.BCrypt
 import com.linhnt.notifications.helper.BankNotificationParser
 import com.linhnt.notifications.helper.EventIdFactory
 import com.linhnt.notifications.helper.HistorySQLiteDatabase
 import com.linhnt.notifications.helper.PreferenceHelper
 import com.linhnt.notifications.model.DeliveryState
+import com.linhnt.notifications.model.PostData
 import com.linhnt.notifications.model.QueuedTransaction
+import com.linhnt.notifications.service.PostServer
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -50,12 +53,29 @@ class CaptureNotificationWorker(
             notificationTag = notificationTag,
             eventTime = eventTime
         )
+
+        // Thực hiện gửi POST ngay lập tức
+        val deviceId = preferences.getDeviceId()
+        val integrityKey = (parsed.account + deviceId).trim()
+        val postData = PostData(
+            integrity = BCrypt.hashpw(integrityKey, BCrypt.gensalt(8)),
+            event_id = eventId,
+            device_id = deviceId,
+            app = parsed.app,
+            content = content,
+            source = parsed.source,
+            amount = parsed.amount,
+            account = parsed.account
+        )
+        val response = PostServer.post(postData)
+
         val now = System.currentTimeMillis()
+        val isSuccess = response.success || response.isDuplicate
         val item = QueuedTransaction(
             eventId = eventId,
             notificationKey = notificationKey,
             packageName = packageName,
-            deviceId = preferences.getDeviceId(),
+            deviceId = deviceId,
             app = parsed.app,
             content = content,
             source = parsed.source,
@@ -64,19 +84,17 @@ class CaptureNotificationWorker(
             time = SimpleDateFormat("HH:mm:ss dd-MM-yyyy", Locale.getDefault())
                 .format(Date(eventTime)),
             postTime = eventTime,
-            status = false,
-            deliveryState = DeliveryState.PENDING,
-            attemptCount = 0,
+            status = isSuccess,
+            deliveryState = if (isSuccess) DeliveryState.SENT else DeliveryState.FAILED,
+            attemptCount = 1,
+            lastError = response.error,
             createdAt = now,
             updatedAt = now
         )
 
         val helper = HistorySQLiteDatabase.getInstance(applicationContext).dbHelper
-        helper.insertPending(item)
-        val existing = helper.getByEventId(eventId)
-        if (existing != null && existing.deliveryState != DeliveryState.SENT && existing.deliveryState != DeliveryState.FAILED) {
-            QueueScheduler.enqueueUpload(applicationContext, eventId)
-        }
+        helper.insert(item)
+
         return Result.success()
     }
 

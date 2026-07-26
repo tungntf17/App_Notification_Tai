@@ -14,6 +14,35 @@ class GetHistoryHelper(
 ) {
     private val table = HistorySQLiteDatabase.TABLE_HISTORY
 
+    fun insert(item: QueuedTransaction): Boolean {
+        val values = ContentValues().apply {
+            put("event_id", item.eventId)
+            put("notification_key", item.notificationKey)
+            put("package_name", item.packageName)
+            put("device_id", item.deviceId)
+            put("app", item.app)
+            put("source", item.source)
+            put("amount", item.amount)
+            put("account", item.account)
+            put("time", item.time)
+            put("post_time", item.postTime)
+            put("content", item.content)
+            put("status", if (item.status) 1 else 0)
+            put("delivery_state", item.deliveryState)
+            put("attempt_count", item.attemptCount)
+            put("last_error", item.lastError)
+            put("created_at", item.createdAt)
+            put("updated_at", item.updatedAt)
+        }
+        val rowId = sqliteOpenHelper.writableDatabase.insertWithOnConflict(
+            table,
+            null,
+            values,
+            android.database.sqlite.SQLiteDatabase.CONFLICT_REPLACE
+        )
+        return rowId != -1L
+    }
+
     fun insertPending(item: QueuedTransaction): Boolean {
         val values = ContentValues().apply {
             put("event_id", item.eventId)
