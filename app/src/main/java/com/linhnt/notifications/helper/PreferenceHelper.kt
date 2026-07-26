@@ -61,6 +61,6 @@ class PreferenceHelper(context: Context, name: String = PREF_NAME) {
         private const val KEY_LISTENER_STATE_AT = "LISTENER_STATE_AT"
         private const val KEY_LAST_NOTIFICATION_AT = "LAST_NOTIFICATION_AT"
         private const val KEY_LAST_HEARTBEAT_AT = "LAST_HEARTBEAT_AT"
-        private const val DEFAULT_APP_NAMES = "accfifa|9dmanga|accffia|9dfgc|9dtt"
+        private const val DEFAULT_APP_NAMES = "Momo|VCB|TPBank|MBBank|VPBank|ACB|TestApp"
     }
 }

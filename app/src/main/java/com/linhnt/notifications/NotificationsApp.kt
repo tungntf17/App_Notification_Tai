@@ -9,6 +9,5 @@ class NotificationsApp : Application() {
         super.onCreate()
         ServerConfig.init(this)
         QueueScheduler.ensureHeartbeat(this)
-        QueueScheduler.enqueueAllPending(this)
     }
 }

@@ -1,8 +1,11 @@
-- `[x]` Cấp quyền và cấu hình Storage trong Manifest
-    - `[x]` Thêm permissions vào `AndroidManifest.xml`
-    - `[x]` Thêm `requestLegacyExternalStorage`
-- `[x]` Cập nhật `ServerConfig.kt` sang thư mục Download
-- `[x]` Thêm logic yêu cầu quyền trong `MainActivity.kt`
+- `[x]` Cấu hình project để thêm module `test-app`
+    - `[x]` Cập nhật `settings.gradle`
+- `[x]` Tạo cấu trúc thư mục và file cấu hình cho `test-app`
+    - `[x]` Tạo `test-app/build.gradle`
+    - `[x]` Tạo `test-app/src/main/AndroidManifest.xml`
+- `[x]` Xây dựng giao diện và logic cho `TestApp`
+    - `[x]` Tạo layout `activity_main.xml`
+    - `[x]` Tạo class `MainActivity.kt` với logic bắn thông báo
 - `[x]` Kiểm tra và xác minh
-    - `[x]` Build project thành công
+    - `[x]` Sync Gradle và Build thử module `:test-app`
     - `[x]` Tạo walkthrough tổng kết

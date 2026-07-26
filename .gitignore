@@ -1,5 +1,6 @@
 .gradle/
 .idea/
+.artifacts/
 local.properties
 *.iml
 *.jks

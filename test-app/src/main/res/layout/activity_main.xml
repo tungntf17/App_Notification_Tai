@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Notifications Test App"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="24dp"
+        android:gravity="center" />
+
+    <Button
+        android:id="@+id/btnVPBank"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Test VPBank NEO"
+        android:layout_marginBottom="8dp" />
+
+    <Button
+        android:id="@+id/btnACB"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Test ACB"
+        android:layout_marginBottom="8dp" />
+
+    <Button
+        android:id="@+id/btnMBBank"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Test MBBank"
+        android:layout_marginBottom="8dp" />
+
+    <Button
+        android:id="@+id/btnTPBank"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Test TPBank"
+        android:layout_marginBottom="8dp" />
+
+    <Button
+        android:id="@+id/btnMomo"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Test Momo"
+        android:layout_marginBottom="8dp" />
+
+    <Button
+        android:id="@+id/btnVCB"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Test VCB"
+        android:layout_marginBottom="8dp" />
+
+    <Button
+        android:id="@+id/btnVCBDigiBiz"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Test VCB DigiBiz"
+        android:layout_marginBottom="8dp" />
+
+    <Button
+        android:id="@+id/btnCustom"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Test Custom Case" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="Note: Bấm nút để gửi thông báo giả lập."
+        android:textColor="#666666" />
+
+</LinearLayout>

@@ -1,23 +1,38 @@
-# Thêm hỗ trợ package testmessage để kiểm thử
+# Kế hoạch sửa lỗi build và hỗ trợ Genimotion
 
-Kế hoạch này sẽ thêm package `testmessage` vào danh sách các ứng dụng được hỗ trợ để bạn có thể gửi thông báo từ một ứng dụng test và kiểm tra khả năng đọc/parse của hệ thống.
+Kế hoạch này tập trung vào việc sửa đổi cấu hình Gradle để tích hợp module `test-app` đúng cách và đảm bảo ứng dụng có thể chạy ổn định trên trình giả lập Genimotion (kiến trúc x86).
 
 ## Proposed Changes
 
-### [Component] Configuration
+### [Component] Project Structure & Integration
 
-#### [MODIFY] [SupportedBankApps.kt](file:///C:/Users/AD/Documents/Git/App_Notification_Tai/app/src/main/java/com/linhnt/notifications/config/SupportedBankApps.kt)
-- Thêm hằng số `TEST = "testmessage"`.
-- Thêm `TEST to "TestApp"` vào bản đồ `apps` để hệ thống nhận diện package này là hợp lệ.
+#### [MODIFY] [settings.gradle](file:///C:/Users/AD/Documents/Git/App_Notification_Tai/settings.gradle)
+- Thêm lại `include ':test-app'` để root project nhận diện module này.
+
+#### [DELETE] [test-app/settings.gradle](file:///C:/Users/AD/Documents/Git/App_Notification_Tai/test-app/settings.gradle)
+- Xóa file này để `test-app` không còn là project độc lập mà trở thành một module của project chính.
+
+#### [DELETE] [test-app/gradlew](file:///C:/Users/AD/Documents/Git/App_Notification_Tai/test-app/gradlew), [test-app/gradlew.bat](file:///C:/Users/AD/Documents/Git/App_Notification_Tai/test-app/gradlew.bat), [test-app/gradle.properties](file:///C:/Users/AD/Documents/Git/App_Notification_Tai/test-app/gradle.properties)
+- Dọn dẹp các file thừa của project con để tránh xung đột cấu hình.
+
+### [Component] App Module Configuration
+
+#### [MODIFY] [app/build.gradle](file:///C:/Users/AD/Documents/Git/App_Notification_Tai/app/build.gradle)
+- Dọn dẹp khối `plugins`, loại bỏ các dòng `apply plugin` dư thừa để tuân thủ style Gradle mới.
+- Thêm `ndk { abiFilters "armeabi-v7a", "arm64-v8a", "x86", "x86_64" }` vào `defaultConfig` để hỗ trợ chạy trên Genimotion (x86).
+
+### [Component] Test App Module Configuration
+
+#### [MODIFY] [test-app/build.gradle](file:///C:/Users/AD/Documents/Git/App_Notification_Tai/test-app/build.gradle)
+- Loại bỏ thông tin phiên bản trong khối `plugins` (sẽ kế thừa từ root project).
+- Thêm `ndk { abiFilters "armeabi-v7a", "arm64-v8a", "x86", "x86_64" }` vào `defaultConfig` tương tự như app chính.
 
 ## Verification Plan
 
-### Manual Verification
-1. Cài đặt một ứng dụng có package name là `testmessage`.
-2. Gửi một thông báo từ ứng dụng đó với nội dung mẫu như:
-   `"Vừa được cộng 100.000 VNĐ vào tài khoản accfifa 123456"`
-3. Kiểm tra xem ứng dụng **Notifications** có nhận được, parse đúng các trường (Amount: 100000, Account: 123456, Source: accfifa) và hiển thị lên danh sách hay không.
-4. Kiểm tra xem dữ liệu có được đẩy lên server (nếu đã cấu hình server URL) hay không.
+### Automated Tests
+- Chạy lệnh `./gradlew clean assembleDebug` để đảm bảo toàn bộ project build thành công.
+- Kiểm tra danh sách các task gradle để xác nhận `:app` và `:test-app` đều có mặt.
 
-> [!NOTE]
-> Do trình parse sử dụng danh sách tên nguồn mặc định là `accfifa|9dmanga|accffia|9dfgc|9dtt`, hãy đảm bảo nội dung tin nhắn test có chứa một trong các tên này để trình parse tìm được "Nguồn" và "Số tài khoản".
+### Manual Verification
+- Người dùng thử Run app trên Genimotion.
+- Kiểm tra xem cả hai ứng dụng có hiển thị trong danh sách run của Android Studio hay không.

@@ -7,6 +7,7 @@ object SupportedBankApps {
     const val MBBANK = "com.mbmobile"
     const val VPBANK = "com.vnpay.vpbankonline"
     const val ACB = "mobile.acb.com.vn"
+    const val TEST = "test.message"
 
     private val apps = mapOf(
         MOMO to "Momo",
@@ -14,7 +15,8 @@ object SupportedBankApps {
         TPBANK to "TPBank",
         MBBANK to "MBBank",
         VPBANK to "VPBank",
-        ACB to "ACB"
+        ACB to "ACB",
+        TEST to "TestApp"
     )
 
     fun isSupported(packageName: String): Boolean = apps.containsKey(packageName)

@@ -48,7 +48,7 @@ class UploadWorker(
         val response = PostServer.post(postData)
 
         return when {
-            response.success -> {
+            response.success || response.isDuplicate -> {
                 helper.markSent(eventId)
                 Result.success()
             }

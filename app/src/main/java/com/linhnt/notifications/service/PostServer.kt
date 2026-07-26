@@ -17,7 +17,8 @@ object PostServer {
         val success: Boolean,
         val retryable: Boolean,
         val httpCode: Int? = null,
-        val error: String = ""
+        val error: String = "",
+        val isDuplicate: Boolean = false
     )
 
     private val gson = Gson()
@@ -51,11 +52,17 @@ object PostServer {
                     ?.takeIf { it.isNotBlank() }
                     ?: responseBody.take(1000).ifBlank { "HTTP ${response.code}" }
 
+                val isDuplicate = message.lowercase().let {
+                    it.contains("duplicate") || it.contains("already exists") || 
+                    it.contains("trung") || it.contains("ton tai")
+                }
+
                 PostResult(
                     success = false,
                     retryable = retryable,
                     httpCode = response.code,
-                    error = message
+                    error = message,
+                    isDuplicate = isDuplicate
                 )
             }
         } catch (error: IOException) {
