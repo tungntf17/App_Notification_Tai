@@ -1,9 +1,8 @@
-- `[x]` Chuyển đổi BCrypt sang Kotlin
-    - `[x]` Tạo file `BCrypt.kt` với logic từ `BCrypt.java`
-    - `[x]` Xóa file `BCrypt.java`
-- `[x]` Dọn dẹp thư mục test
-    - `[x]` Xóa thư mục `app/src/androidTest`
-    - `[x]` Xóa thư mục `app/src/test`
+- `[x]` Cấp quyền và cấu hình Storage trong Manifest
+    - `[x]` Thêm permissions vào `AndroidManifest.xml`
+    - `[x]` Thêm `requestLegacyExternalStorage`
+- `[x]` Cập nhật `ServerConfig.kt` sang thư mục Download
+- `[x]` Thêm logic yêu cầu quyền trong `MainActivity.kt`
 - `[x]` Kiểm tra và xác minh
-    - `[x]` Build project để xác nhận không lỗi compile
+    - `[x]` Build project thành công
     - `[x]` Tạo walkthrough tổng kết

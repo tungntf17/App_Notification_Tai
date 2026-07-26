@@ -1,32 +1,38 @@
-# Walkthrough - Chuyển đổi sang Kotlin và Dọn dẹp Project
+# Walkthrough - Chuyển file config sang thư mục Download
 
-Tôi đã hoàn thành việc chuyển đổi file Java cuối cùng sang Kotlin và dọn dẹp các thư mục test không cần thiết.
+Tôi đã chuyển đổi cách lưu trữ file cấu hình URL server sang thư mục **Download** để bạn có thể dễ dàng quản lý mà không cần dùng lệnh ADB phức tạp.
 
 ## Các thay đổi chính
 
-### 1. Chuyển đổi BCrypt sang Kotlin
-- **File mới**: [BCrypt.kt](file:///C:/Users/AD/Documents/Git/App_Notification_Tai/app/src/main/java/com/linhnt/notifications/helper/BCrypt.kt)
-- **File đã xóa**: `BCrypt.java`
-- **Chi tiết**: Toàn bộ logic mã hóa mật khẩu đã được chuyển sang Kotlin một cách chính xác. Tôi đã sử dụng `companion object` và `@JvmStatic` để đảm bảo tính tương thích với các phần khác của code (như trong `UploadWorker.kt`) mà không cần thay đổi cách gọi hàm.
+### 1. Quyền truy cập bộ nhớ (Storage Permissions)
+- **Manifest**: Đã thêm các quyền `READ_EXTERNAL_STORAGE`, `WRITE_EXTERNAL_STORAGE` và đặc biệt là `MANAGE_EXTERNAL_STORAGE`.
+- **MainActivity**: Thêm logic yêu cầu quyền "Truy cập tất cả các tệp" (All Files Access) khi ứng dụng khởi chạy lần đầu trên Android 11+.
 
-> [!NOTE]
-> Các hằng số hex lớn đã được xử lý bằng `.toInt()` để đảm bảo Kotlin xử lý đúng kiểu dữ liệu 32-bit signed integer như trong Java.
+### 2. Thư mục cấu hình mới
+- **Vị trí**: `Bộ nhớ máy > Download > NotificationsConfig > server_url.txt`
+- **Tự động sinh**: Khi bạn cài app và cấp quyền thành công, ứng dụng sẽ tự tạo thư mục `NotificationsConfig` và file `server_url.txt` bên trong thư mục Download.
 
-### 2. Dọn dẹp thư mục Test
-- Đã xóa toàn bộ thư mục `app/src/androidTest` và `app/src/test` cùng với các file example bên trong.
-- Project hiện tại đã sạch sẽ và chỉ chứa các code thực tế của ứng dụng.
+### 3. Cập nhật mã nguồn
+- [ServerConfig.kt](file:///C:/Users/AD/Documents/Git/App_Notification_Tai/app/src/main/java/com/linhnt/notifications/config/ServerConfig.kt): Chuyển logic đọc/ghi từ bộ nhớ trong sang thư mục Download công cộng.
+- [MainActivity.kt](file:///C:/Users/AD/Documents/Git/App_Notification_Tai/app/src/main/java/com/linhnt/notifications/activity/MainActivity.kt): Thêm xử lý quyền runtime.
+
+## Hướng dẫn sử dụng
+
+1. **Cài đặt APK**: Cài đặt ứng dụng như bình thường.
+2. **Cấp quyền**: Khi mở app, nó sẽ dẫn bạn đến màn hình cài đặt "Truy cập tất cả các tệp". Hãy tìm app **Notifications** và bật nó lên.
+3. **Chỉnh sửa URL**:
+   - Dùng bất kỳ ứng dụng quản lý file nào (như Files, ZArchiver...).
+   - Vào thư mục **Download** -> **NotificationsConfig**.
+   - Mở file **server_url.txt** và sửa URL theo ý muốn.
+4. **Áp dụng**: Khởi động lại app hoặc đợi app load lại cấu hình.
+
+> [!CAUTION]
+> Đừng xóa thư mục `NotificationsConfig` trong khi app đang chạy, vì app có thể quay lại dùng URL mặc định nếu không tìm thấy file.
 
 ## Kết quả xác minh
+- **Build**: Hoàn tất thành công.
+- **Quyền**: Đã tích hợp đầy đủ cho các đời Android mới nhất.
 
-### Build thành công
-Tôi đã chạy lệnh build để kiểm tra tính toàn vẹn của mã nguồn:
-```bash
-./gradlew :app:assembleDebug
-```
-**Kết quả**: `Build finished successfully.`
-
-### Cấu trúc project hiện tại
-- Toàn bộ source code trong `src/main/java` hiện tại là file Kotlin (.kt).
-- Không còn thư mục test rỗng gây nhiễu.
-
-render_diffs(file:///C:/Users/AD/Documents/Git/App_Notification_Tai/app/src/main/java/com/linhnt/notifications/helper/BCrypt.kt)
+render_diffs(file:///C:/Users/AD/Documents/Git/App_Notification_Tai/app/src/main/java/com/linhnt/notifications/config/ServerConfig.kt)
+render_diffs(file:///C:/Users/AD/Documents/Git/App_Notification_Tai/app/src/main/java/com/linhnt/notifications/activity/MainActivity.kt)
+render_diffs(file:///C:/Users/AD/Documents/Git/App_Notification_Tai/app/src/main/AndroidManifest.xml)

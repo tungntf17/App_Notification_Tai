@@ -6,8 +6,10 @@ import android.app.NotificationManager
 import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Environment
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
@@ -24,6 +26,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.linhnt.notifications.R
 import com.linhnt.notifications.adapter.NotificationAdapter
+import com.linhnt.notifications.config.ServerConfig
 import com.linhnt.notifications.helper.HistorySQLiteDatabase
 import com.linhnt.notifications.helper.PreferenceHelper
 import com.linhnt.notifications.service.NotificationService
@@ -57,6 +60,7 @@ class MainActivity : AppCompatActivity() {
         rvMain?.layoutManager = LinearLayoutManager(this)
         rvMain?.adapter = adapter
 
+        requestStoragePermission()
         requestPostNotificationPermission()
         if (!hasNotificationListenerAccess()) {
             startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
@@ -137,6 +141,46 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun requestStoragePermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            if (!Environment.isExternalStorageManager()) {
+                val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
+                val uri = Uri.fromParts("package", packageName, null)
+                intent.data = uri
+                startActivity(intent)
+            } else {
+                // Đã có quyền, đảm bảo config được load lại (vì file init có thể fail trước đó)
+                ServerConfig.init(this)
+            }
+        } else {
+            val permissions = arrayOf(
+                Manifest.permission.READ_EXTERNAL_STORAGE,
+                Manifest.permission.WRITE_EXTERNAL_STORAGE
+            )
+            val needed = permissions.filter {
+                ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+            }
+            if (needed.isNotEmpty()) {
+                ActivityCompat.requestPermissions(this, needed.toTypedArray(), REQUEST_STORAGE)
+            } else {
+                ServerConfig.init(this)
+            }
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == REQUEST_STORAGE) {
+            if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
+                ServerConfig.init(this)
+            }
+        }
+    }
+
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
         menu?.add(0, MENU_DEVICE_ID, 0, getString(R.string.add))
             ?.setIcon(R.drawable.ic_add)
@@ -194,6 +238,7 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         private const val REQUEST_POST_NOTIFICATIONS = 1001
+        private const val REQUEST_STORAGE = 1002
         private const val MENU_DEVICE_ID = 0
         private const val MENU_SOURCE_NAMES = 1
         private const val REFRESH_INTERVAL_MS = 3_000L
